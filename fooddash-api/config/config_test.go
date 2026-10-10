@@ -49,6 +49,17 @@ func TestDayRangeUsesLagosTime(t *testing.T) {
 	}
 }
 
+func TestDatabaseURLTakesPrecedence(t *testing.T) {
+	c := Config{DatabaseURL: "postgres://u:p@db.example.com/fooddash", DBHost: "localhost"}
+	if got := c.DSN(); got != "postgres://u:p@db.example.com/fooddash?timezone=UTC" {
+		t.Fatalf("got %q", got)
+	}
+	c.DatabaseURL = "postgres://u:p@db.example.com/fooddash?sslmode=require"
+	if got := c.DSN(); got != "postgres://u:p@db.example.com/fooddash?sslmode=require&timezone=UTC" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestLoadRequiresSecretInProduction(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "")

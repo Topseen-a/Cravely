@@ -82,6 +82,7 @@ Settings are read from environment variables. In development they're loaded from
 |---|---|---|
 | `APP_ENV` | `development` | `production` enables JSON logs, stricter checks and quieter SQL logging |
 | `PORT` | `8080` | HTTP port |
+| `DATABASE_URL` | *(empty)* | Full connection string, e.g. `postgres://user:pass@host:5432/fooddash?sslmode=require`. When set, the `DB_*` settings below are ignored |
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
 | `DB_USER` | `postgres` | Database user |
@@ -393,9 +394,17 @@ The image is based on Alpine and runs as a non-root user. It includes `tzdata` (
 
 ## Deploying to production
 
+**On Render:** the `render.yaml` Blueprint in the repository root creates the database and this API (Docker, Frankfurt region) with `DATABASE_URL`, `APP_ENV`, a generated `JWT_SECRET`, `TRUSTED_PROXIES` and a `/readyz` health check already set. You'll be asked for `STAFF_CODE`, `CORS_ORIGINS`, `APP_URL` and `PAYSTACK_CALLBACK_URL`. To load the sample menu into the Render database from your computer:
+
+```bash
+DATABASE_URL='<External Database URL from Render>' go run ./cmd/seed
+```
+
+Checklist for any host:
+
 - [ ] `APP_ENV=production`
 - [ ] `JWT_SECRET` set to a long random value (`openssl rand -hex 32`)
-- [ ] Managed PostgreSQL with `DB_SSLMODE=require` and backups enabled
+- [ ] Managed PostgreSQL (`DATABASE_URL`) with backups enabled
 - [ ] `CORS_ORIGINS` and `APP_URL` set to your real website address (https)
 - [ ] `TRUSTED_PROXIES` set if you're behind a load balancer or reverse proxy
 - [ ] `STAFF_CODE` changed from any default and kept private

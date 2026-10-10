@@ -13,6 +13,10 @@ type Config struct {
 	Env  string // "development" or "production"
 	Port string
 
+	// DatabaseURL (postgres://user:pass@host:port/db) takes precedence over
+	// the individual DB_* settings. Render, Neon and Supabase provide one.
+	DatabaseURL string
+
 	DBHost, DBUser, DBPassword, DBName, DBPort, DBSSLMode string
 
 	JWTSecret string
@@ -46,14 +50,15 @@ type Config struct {
 func Load() (Config, error) {
 	var err error
 	cfg := Config{
-		Env:        getEnv("APP_ENV", "development"),
-		Port:       getEnv("PORT", "8080"),
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBName:     getEnv("DB_NAME", "fooddash"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		Env:         getEnv("APP_ENV", "development"),
+		Port:        getEnv("PORT", "8080"),
+		DBHost:      getEnv("DB_HOST", "localhost"),
+		DBUser:      getEnv("DB_USER", "postgres"),
+		DBPassword:  getEnv("DB_PASSWORD", ""),
+		DBName:      getEnv("DB_NAME", "fooddash"),
+		DBPort:      getEnv("DB_PORT", "5432"),
+		DBSSLMode:   getEnv("DB_SSLMODE", "disable"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
 
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		StaffCode: os.Getenv("STAFF_CODE"),
@@ -127,6 +132,17 @@ func Load() (Config, error) {
 func (c Config) IsProduction() bool { return c.Env == "production" }
 
 func (c Config) DSN() string {
+	if c.DatabaseURL != "" {
+		// Keep the session in UTC, matching the key=value DSN below.
+		if strings.Contains(strings.ToLower(c.DatabaseURL), "timezone=") {
+			return c.DatabaseURL
+		}
+		sep := "?"
+		if strings.Contains(c.DatabaseURL, "?") {
+			sep = "&"
+		}
+		return c.DatabaseURL + sep + "timezone=UTC"
+	}
 	return fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=UTC",
 		c.DBHost, c.DBUser, c.DBPassword, c.DBName, c.DBPort, c.DBSSLMode,

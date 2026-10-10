@@ -192,8 +192,8 @@ Upload the `dist/` folder to any static host. Because the app uses client-side r
 
 | Host | Setting |
 |---|---|
+| **Vercel** | Already configured by `vercel.json` in this folder. Set the project's **Root Directory** to `fooddash-ui` and add `VITE_API_URL` |
 | **Netlify** | Add `public/_redirects` containing `/*  /index.html  200` |
-| **Vercel** | Add `vercel.json`: `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }` |
 | **Cloudflare Pages** | Single-page app routing works by default |
 | **nginx** | `location / { try_files $uri /index.html; }` |
 

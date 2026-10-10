@@ -182,7 +182,13 @@ cd fooddash-ui  && npm run build    # production build check
 
 ## Deployment
 
-1. **Database:** a managed PostgreSQL (Render, Supabase, Neon, AWS RDS…). Set `DB_SSLMODE=require`.
+**Render + Vercel (ready to use):**
+- `render.yaml` creates the PostgreSQL database and the API on Render in one step (*New → Blueprint*).
+- `fooddash-ui/vercel.json` configures the website on Vercel (set the project's Root Directory to `fooddash-ui` and add `VITE_API_URL`).
+
+General steps for any host:
+
+1. **Database:** a managed PostgreSQL (Render, Supabase, Neon, AWS RDS…). Paste its connection string into `DATABASE_URL`.
 2. **API:** build with the included `Dockerfile` (or `go build`) and set the environment variables. In production set `APP_ENV=production`, a strong `JWT_SECRET`, `CORS_ORIGINS` and `APP_URL` pointing at your website, and real Paystack and SMTP credentials. Health checks: `/healthz` and `/readyz`.
 3. **Web app:** `npm run build` with `VITE_API_URL` set to your public API URL, then host `dist/` on any static host (Netlify, Vercel, Cloudflare Pages, nginx). Configure the host to serve `index.html` for every route.
 4. **Paystack:** in the Paystack dashboard, set the webhook URL to `https://<your-api-domain>/api/v1/webhooks/paystack`.
