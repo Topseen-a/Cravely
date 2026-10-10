@@ -1,68 +1,63 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-
+import { useState } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/hooks';
+import { apiError } from '../lib/format';
+import AuthLayout from '../components/AuthLayout';
+import { Button, Input, PasswordInput } from '../components/ui';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [params] = useSearchParams();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setError(""); setLoading(true);
+    e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
       const user = await login(form.email, form.password);
-      navigate(user.role === "staff" ? "/staff" : "/");
+      const next = params.get('next');
+      navigate(next && next.startsWith('/') ? next : user.role === 'staff' ? '/staff' : '/');
     } catch (err) {
-      setError(err.response?.data?.error || "Loginfailed");
+      setError(apiError(err, 'Login failed'));
     } finally {
       setLoading(false);
     }
   };
+
   return (
-    <div className="max-w-md mx-auto mt-16 p-8 bg-white rounded-xl shadow">
-      <h1 className="text-2xl font-bold mb-6 text-center">Login to FoodDash</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-          className="w-full border rounded-lg px-4 py-2 "
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-          className="w-full border rounded-lg px-4 py-2"
-          required
-        />
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 disabled:opacity-50"
-        >
-          {loading ? "Logging in..." : "Login"}{" "}
-        </button>
+    <AuthLayout quote="The jollof reach Lekki and e still dey hot. Na here I dey order from now." by="Tolu, Lekki Phase 1">
+      <h1 className="text-4xl font-extrabold">Welcome back</h1>
+      <p className="mt-2 text-muted">Log in to order and track your food in real time.</p>
+      {params.get('reset') && (
+        <p className="mt-6 rounded-xl bg-palm-soft px-4 py-3 text-sm font-semibold text-palm">Password updated. Log in with your new password.</p>
+      )}
+      {params.get('expired') && (
+        <p className="mt-6 rounded-xl bg-danfo-soft px-4 py-3 text-sm font-semibold">Your session expired. Please log in again.</p>
+      )}
+      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <Input label="Email" type="email" autoComplete="email" value={form.email} onChange={set('email')} required placeholder="you@example.com" />
+        <div>
+          <PasswordInput autoComplete="current-password" value={form.password} onChange={set('password')} required />
+          <div className="mt-2 text-right">
+            <Link to={`/forgot-password${form.email ? `?email=${encodeURIComponent(form.email)}` : ''}`} className="text-sm font-semibold text-ink-soft underline decoration-danfo decoration-2 underline-offset-4 hover:text-ink">
+              Forgot password?
+            </Link>
+          </div>
+        </div>
+        {error && <p role="alert" className="rounded-xl bg-jollof-soft px-4 py-3 text-sm font-semibold text-jollof-dark">{error}</p>}
+        <Button type="submit" size="lg" loading={loading} className="w-full">Log in</Button>
       </form>
-      <p className="text-center mt-4 text-sm">
-        No account?
-        <Link to="/register" className="text-orange-500">
-          Register
-        </Link>
+      <p className="mt-8 text-center text-sm text-muted">
+        New to Cravely? <Link to={`/register${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="font-bold text-ink underline decoration-danfo decoration-4 underline-offset-4">Create an account</Link>
       </p>
-      <p className="text-center mt-2 text-sm">
-        Staff member?
-        <Link to="/staff/register" className="text-orange-500">
-          Staff Registration
-        </Link>
+      <p className="mt-3 text-center text-sm text-muted">
+        Kitchen staff? <Link to="/staff/register" className="font-semibold text-ink-soft underline">Staff sign-up</Link>
       </p>
-    </div>
+    </AuthLayout>
   );
 }

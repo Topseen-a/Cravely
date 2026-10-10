@@ -1,123 +1,199 @@
 package handlers
 
 import (
-	"fooddash-api/db"
+	"context"
+	"fooddash-api/middleware"
 	"fooddash-api/models"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-
-func getOrCreateCart(userID uint) (models.Cart, error) {
+// getOrCreateCart returns the user's cart, creating it on first use. Two
+// concurrent first requests can race on the unique user_id; the loser simply
+// reads the winner's row.
+func (h *Handler) getOrCreateCart(ctx context.Context, userID uint) (models.Cart, error) {
 	var cart models.Cart
-	result := db.DB.Where(models.Cart{UserID: userID}).FirstOrCreate(&cart)
-	return cart, result.Error
-}
-
-
-func loadCartWithItems(cartID uint) (models.Cart, error) {
-	var cart models.Cart
-	err := db.DB.Preload("CartItems.MenuItem").First(&cart, cartID).Error
+	err := h.db.WithContext(ctx).Where(models.Cart{UserID: userID}).FirstOrCreate(&cart).Error
+	if isDuplicate(err) {
+		err = h.db.WithContext(ctx).Where(models.Cart{UserID: userID}).First(&cart).Error
+	}
 	return cart, err
 }
 
-
-func GetCart(c *gin.Context) {
-	user, _ := c.MustGet("currentUser").(models.User)
-	cart, err := getOrCreateCart(user.ID)
-
+// loadCart returns the cart with items and subtotal. Items whose menu item
+// has since been deleted are dropped.
+func (h *Handler) loadCart(ctx context.Context, cartID uint) (models.Cart, error) {
+	var cart models.Cart
+	err := h.db.WithContext(ctx).
+		Preload("CartItems", func(tx *gorm.DB) *gorm.DB { return tx.Order("id asc") }).
+		Preload("CartItems.MenuItem").
+		First(&cart, cartID).Error
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return cart, err
 	}
 
-	cart, _ = loadCartWithItems(cart.ID)
-	c.JSON(http.StatusOK, gin.H{"data": cart})
+	live := cart.CartItems[:0]
+	var orphaned []uint
+	for _, it := range cart.CartItems {
+		if it.MenuItem.ID == 0 {
+			orphaned = append(orphaned, it.ID)
+			continue
+		}
+		live = append(live, it)
+	}
+	if len(orphaned) > 0 {
+		if err := h.db.WithContext(ctx).Delete(&models.CartItem{}, orphaned).Error; err != nil {
+			return cart, err
+		}
+	}
+	cart.CartItems = live
+	cart.ComputeSubtotal()
+	return cart, nil
 }
 
+func (h *Handler) respondCart(c *gin.Context, cartID uint, status int) {
+	cart, err := h.loadCart(c.Request.Context(), cartID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	c.JSON(status, gin.H{"data": cart})
+}
 
-func AddToCart(c *gin.Context) {
-	user, _ := c.MustGet("currentUser").(models.User)
+func (h *Handler) GetCart(c *gin.Context) {
+	cart, err := h.getOrCreateCart(c.Request.Context(), middleware.CurrentUser(c).ID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	h.respondCart(c, cart.ID, http.StatusOK)
+}
+
+func (h *Handler) AddToCart(c *gin.Context) {
+	ctx := c.Request.Context()
 	var input models.AddToCartInput
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
 	var menuItem models.MenuItem
-	if err := db.DB.First(&menuItem, input.MenuItemID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Menu item not found"})
+	if err := h.db.WithContext(ctx).First(&menuItem, input.MenuItemID).Error; err != nil {
+		if isNotFound(err) {
+			fail(c, http.StatusNotFound, "Menu item not found")
+			return
+		}
+		serverError(c, err)
 		return
 	}
-
 	if !menuItem.IsAvailable {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Item not available"})
+		msg := menuItem.Name + " is sold out"
+		if menuItem.SoldOutNote != "" {
+			msg += ": " + menuItem.SoldOutNote
+		}
+		fail(c, http.StatusConflict, msg)
 		return
 	}
 
-	cart, _ := getOrCreateCart(user.ID)
-	var existing models.CartItem
-
-	result := db.DB.Where("cart_id = ? AND menu_item_id = ?", cart.ID, input.MenuItemID).First(&existing)
-	
-	if result.Error == nil {
-		db.DB.Model(&existing).Update("quantity", existing.Quantity+input.Quantity)
-	} else {
-		db.DB.Create(&models.CartItem{CartID:cart.ID, MenuItemID: input.MenuItemID, Quantity: input.Quantity, SpecialInstructions: input.SpecialInstructions})
+	cart, err := h.getOrCreateCart(ctx, middleware.CurrentUser(c).ID)
+	if err != nil {
+		serverError(c, err)
+		return
 	}
 
-	cart, _ = loadCartWithItems(cart.ID)
-	c.JSON(http.StatusOK, gin.H{"data": cart})
+	// Insert, or add to the existing line for this item, in one atomic
+	// statement so double-clicks can't create duplicate lines.
+	item := models.CartItem{
+		CartID:              cart.ID,
+		MenuItemID:          input.MenuItemID,
+		Quantity:            input.Quantity,
+		SpecialInstructions: strings.TrimSpace(input.SpecialInstructions),
+	}
+	err = h.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:     []clause.Column{{Name: "cart_id"}, {Name: "menu_item_id"}},
+		TargetWhere: clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "deleted_at IS NULL"}}},
+		DoUpdates: clause.Set{
+			{Column: clause.Column{Name: "quantity"}, Value: gorm.Expr("LEAST(cart_items.quantity + excluded.quantity, ?)", models.MaxItemQuantity)},
+			{Column: clause.Column{Name: "special_instructions"}, Value: gorm.Expr("COALESCE(NULLIF(excluded.special_instructions, ''), cart_items.special_instructions)")},
+			{Column: clause.Column{Name: "updated_at"}, Value: gorm.Expr("excluded.updated_at")},
+		},
+	}).Create(&item).Error
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	h.respondCart(c, cart.ID, http.StatusOK)
 }
 
-
-func UpdateCartItem(c *gin.Context) {
-	user, _ := c.MustGet("currentUser").(models.User)
+func (h *Handler) UpdateCartItem(c *gin.Context) {
+	ctx := c.Request.Context()
+	itemID, ok := idParam(c, "id")
+	if !ok {
+		return
+	}
 	var input models.UpdateCartItemInput
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	cart, _ := getOrCreateCart(user.ID)
-	var item models.CartItem
-
-	if err := db.DB.Where("id = ? AND cart_id = ?", c.Param("id"), cart.ID).First(&item).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Cart item not found"})
+	cart, err := h.getOrCreateCart(ctx, middleware.CurrentUser(c).ID)
+	if err != nil {
+		serverError(c, err)
 		return
 	}
-
-	db.DB.Model(&item).Updates(models.CartItem{Quantity: input.Quantity, SpecialInstructions: input.SpecialInstructions})
-
-	cart, _ = loadCartWithItems(cart.ID)
-	c.JSON(http.StatusOK, gin.H{"data": cart})
+	res := h.db.WithContext(ctx).Model(&models.CartItem{}).
+		Where("id = ? AND cart_id = ?", itemID, cart.ID).
+		Updates(map[string]any{
+			"quantity":             input.Quantity,
+			"special_instructions": strings.TrimSpace(input.SpecialInstructions),
+		})
+	if res.Error != nil {
+		serverError(c, res.Error)
+		return
+	}
+	if res.RowsAffected == 0 {
+		fail(c, http.StatusNotFound, "Cart item not found")
+		return
+	}
+	h.respondCart(c, cart.ID, http.StatusOK)
 }
 
-
-func RemoveCartItem(c *gin.Context) {
-	user, _ := c.MustGet("currentUser").(models.User)
-	cart, _ := getOrCreateCart(user.ID)
-	var item models.CartItem
-
-	if err := db.DB.Where("id = ? AND cart_id = ?", c.Param("id"), cart.ID).First(&item).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+func (h *Handler) RemoveCartItem(c *gin.Context) {
+	ctx := c.Request.Context()
+	itemID, ok := idParam(c, "id")
+	if !ok {
 		return
 	}
-
-	db.DB.Delete(&item)
-
-	cart, _ = loadCartWithItems(cart.ID)
-	c.JSON(http.StatusOK, gin.H{"data": cart})
+	cart, err := h.getOrCreateCart(ctx, middleware.CurrentUser(c).ID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	res := h.db.WithContext(ctx).Where("id = ? AND cart_id = ?", itemID, cart.ID).Delete(&models.CartItem{})
+	if res.Error != nil {
+		serverError(c, res.Error)
+		return
+	}
+	if res.RowsAffected == 0 {
+		fail(c, http.StatusNotFound, "Cart item not found")
+		return
+	}
+	h.respondCart(c, cart.ID, http.StatusOK)
 }
 
-
-func ClearCart(c *gin.Context) {
-	user, _ := c.MustGet("currentUser").(models.User)
-	cart, _ := getOrCreateCart(user.ID)
-
-	db.DB.Where("cart_id = ?", cart.ID).Delete(&models.CartItem{})
-	c.JSON(http.StatusOK, gin.H{"message": "Cart cleared"})
+func (h *Handler) ClearCart(c *gin.Context) {
+	ctx := c.Request.Context()
+	cart, err := h.getOrCreateCart(ctx, middleware.CurrentUser(c).ID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if err := h.db.WithContext(ctx).Where("cart_id = ?", cart.ID).Delete(&models.CartItem{}).Error; err != nil {
+		serverError(c, err)
+		return
+	}
+	h.respondCart(c, cart.ID, http.StatusOK)
 }

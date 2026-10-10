@@ -1,1 +1,228 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/dm-sans';
+
+/* ------------------------------------------------------------------
+   Cravely design tokens — colours taken from the streets of Lagos:
+   danfo yellow, asphalt ink, jollof red, lagoon teal, adire indigo,
+   and the green of the Naija flag.
+   ------------------------------------------------------------------ */
+@theme {
+  --font-display: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #17120e;
+  --color-ink-soft: #3a302a;
+  --color-muted: #7a6a5c;
+  --color-cream: #fff8ec;
+  --color-cream-dark: #f5e8d0;
+  --color-line: #ead9bc;
+
+  --color-danfo: #ffc72c;
+  --color-danfo-dark: #f0ae00;
+  --color-danfo-soft: #fff1c2;
+
+  --color-jollof: #e2492b;
+  --color-jollof-dark: #c23a1f;
+  --color-jollof-soft: #fde3da;
+
+  --color-lagoon: #0d6e73;
+  --color-lagoon-dark: #0a4f55;
+  --color-lagoon-soft: #d7efee;
+
+  --color-adire: #23307a;
+  --color-adire-soft: #e1e5f7;
+
+  --color-palm: #0a8754;
+  --color-palm-soft: #d9f2e5;
+
+  --shadow-card: 0 1px 0 rgb(23 18 14 / 0.04), 0 8px 24px -12px rgb(23 18 14 / 0.18);
+  --shadow-pop: 0 18px 50px -20px rgb(23 18 14 / 0.45);
+
+  --animate-drive: drive 16s linear infinite;
+  --animate-drive-slow: drive 24s linear infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pop: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  --animate-wiggle: wiggle 0.5s ease-in-out;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-bob: bob 0.6s ease-in-out infinite alternate;
+
+  @keyframes drive {
+    from { transform: translateX(-260px); }
+    to { transform: translateX(1460px); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
+  }
+  @keyframes shimmer {
+    from { background-position: -400px 0; }
+    to { background-position: 400px 0; }
+  }
+  @keyframes bob {
+    from { transform: translateY(0); }
+    to { transform: translateY(-1.5px); }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-cream text-ink font-sans antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+  /* Tailwind v4 no longer gives buttons a pointer cursor; restore it. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  select,
+  label[for] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  ::selection {
+    background: var(--color-danfo);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-adire);
+    outline-offset: 2px;
+  }
+}
+
+/* Adire-inspired textile pattern (circles + stitched lines), used as a
+   quiet texture on dark panels and section backgrounds. */
+.bg-adire {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.09' stroke-width='1.5'%3E%3Ccircle cx='14' cy='14' r='8'/%3E%3Ccircle cx='14' cy='14' r='3'/%3E%3Ccircle cx='42' cy='42' r='8'/%3E%3Ccircle cx='42' cy='42' r='3'/%3E%3Cpath d='M34 10h16M34 16h16M6 38h16M6 44h16' stroke-dasharray='2 3'/%3E%3C/g%3E%3C/svg%3E");
+}
+.bg-adire-light {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%2323307a' stroke-opacity='.07' stroke-width='1.5'%3E%3Ccircle cx='14' cy='14' r='8'/%3E%3Ccircle cx='14' cy='14' r='3'/%3E%3Ccircle cx='42' cy='42' r='8'/%3E%3Ccircle cx='42' cy='42' r='3'/%3E%3Cpath d='M34 10h16M34 16h16M6 38h16M6 44h16' stroke-dasharray='2 3'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Danfo stripes: the black bands on Lagos' yellow buses. */
+.danfo-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-ink) 0 10px,
+    var(--color-danfo) 10px 20px
+  );
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-cream-dark) 0, #fbf1df 50%, var(--color-cream-dark) 100%);
+  background-size: 800px 100%;
+  @apply animate-shimmer;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* SVG animation helpers used by the illustrations */
+.wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.wave {
+  animation: wave-slide 7s linear infinite;
+}
+.wave-slow {
+  animation: wave-slide 11s linear infinite reverse;
+}
+@keyframes wave-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-120px); }
+}
+.sun-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sun-glow 6s ease-in-out infinite;
+}
+@keyframes sun-glow {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.12); opacity: 0.8; }
+}
+.drift {
+  animation: drift 30s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(140px); }
+}
+.birds {
+  animation: birds 22s linear infinite;
+}
+@keyframes birds {
+  from { transform: translate(-100px, 0); }
+  to { transform: translate(1300px, -40px); }
+}
+.steam path {
+  animation: steam 2.6s ease-in-out infinite;
+  opacity: 0;
+}
+.steam path:nth-child(2) { animation-delay: 0.7s; }
+.steam path:nth-child(3) { animation-delay: 1.4s; }
+@keyframes steam {
+  0% { opacity: 0; transform: translateY(6px); }
+  40% { opacity: 0.7; }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+.blink {
+  animation: blink 1.4s ease-in-out infinite;
+}
+@keyframes blink {
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Flickering flame in the "kitchen open" pill */
+.flicker {
+  transform-origin: 50% 100%;
+  animation: flicker 1.6s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  25% { transform: scale(0.94, 1.07) rotate(-3deg); }
+  50% { transform: scale(1.03, 0.96) rotate(2deg); }
+  75% { transform: scale(0.97, 1.05) rotate(-1deg); }
+}

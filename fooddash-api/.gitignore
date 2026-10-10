@@ -1,1 +1,6 @@
 .env
+/fooddash-api
+/api
+/seed
+*.test
+*.out

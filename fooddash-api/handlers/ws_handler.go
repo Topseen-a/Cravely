@@ -1,68 +1,73 @@
 package handlers
 
 import (
+	"fooddash-api/middleware"
+	"fooddash-api/models"
 	"fooddash-api/ws"
-	"log"
+	"log/slog"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize: 1024, WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool { return true },
+// Browsers can't set headers on WebSocket requests, so the JWT is passed as
+// ?token=... instead.
+func (h *Handler) wsUser(c *gin.Context) (models.User, bool) {
+	token := c.Query("token")
+	if token == "" {
+		fail(c, http.StatusUnauthorized, "Authentication required")
+		return models.User{}, false
+	}
+	user, err := middleware.UserFromToken(c, h.db, h.tokens, token)
+	if err != nil {
+		fail(c, http.StatusUnauthorized, "Your session has expired. Please log in again.")
+		return user, false
+	}
+	return user, true
 }
 
-func ServeWS(c *gin.Context) {
-	orderID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *Handler) upgrade(c *gin.Context, topic string) {
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		slog.Warn("ws upgrade failed", "err", err)
 		return
 	}
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		log.Println("WS upgrade error:", err)
+	h.hub.Serve(conn, topic)
+}
+
+// ServeOrderWS streams live updates for one order to its owner (or staff).
+func (h *Handler) ServeOrderWS(c *gin.Context) {
+	user, ok := h.wsUser(c)
+	if !ok {
 		return
 	}
-	client := &ws.Client{OrderID: uint(orderID), Conn: conn, Send: make(chan []byte, 64)}
-	ws.GlobalHub.Register(client)
-	go writePump(client)
-	go readPump(client)
+	id, ok := idParam(c, "id")
+	if !ok {
+		return
+	}
+	var order models.Order
+	err := h.db.WithContext(c.Request.Context()).Select("id", "user_id").First(&order, id).Error
+	if isNotFound(err) || (err == nil && order.UserID != user.ID && user.Role != models.RoleStaff) {
+		fail(c, http.StatusNotFound, "Order not found")
+		return
+	}
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	h.upgrade(c, ws.OrderTopic(order.ID))
 }
 
-func writePump(c *ws.Client) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer func() { ticker.Stop(); c.Conn.Close(); ws.GlobalHub.Unregister(c) }()
-	for {
-		select {
-		case msg, ok := <-c.Send:
-			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-			c.Conn.WriteMessage(websocket.TextMessage, msg)
-		case <-ticker.C:
-			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
-		}
+// ServeStaffWS streams every new order and status change to the kitchen
+// dashboard, so it doesn't need to poll.
+func (h *Handler) ServeStaffWS(c *gin.Context) {
+	user, ok := h.wsUser(c)
+	if !ok {
+		return
 	}
-}
-
-func readPump(c *ws.Client) {
-	defer func() { ws.GlobalHub.Unregister(c); c.Conn.Close() }()
-	c.Conn.SetReadLimit(512)
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		return nil
-	})
-	for {
-		if _, _, err := c.Conn.ReadMessage(); err != nil {
-			break
-		}
+	if user.Role != models.RoleStaff {
+		fail(c, http.StatusForbidden, "Staff access required")
+		return
 	}
+	h.upgrade(c, ws.StaffTopic)
 }

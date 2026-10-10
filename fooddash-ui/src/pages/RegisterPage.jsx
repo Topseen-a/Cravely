@@ -1,41 +1,55 @@
-import { useState } from 'react'; 
-import { useNavigate,Link } from 'react-router-dom'; 
-import { useAuth} from '../context/AuthContext'; 
+import { useState } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/hooks';
+import { useToast } from '../context/hooks';
+import { apiError } from '../lib/format';
+import AuthLayout from '../components/AuthLayout';
+import { Button, Input, PasswordInput } from '../components/ui';
 
+export default function RegisterPage() {
+  const { register } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [error, setError] = useState('');
+  const [fields, setFields] = useState({});
+  const [loading, setLoading] = useState(false);
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
-export default function RegisterPage(){ 
-    const{register} = useAuth();
-    const navigate = useNavigate(); 
-    const [form,setForm] = useState({name:'',email:'',password:''}); 
-    const [error,setError] = useState('');
-    const [loading,setLoading] = useState(false); 
-    const handleSubmit = async e=> { 
-        e.preventDefault();
-        setError('');
-        setLoading(true); 
-        try{
-            await register(form.name,form.email,form.password);
-            navigate('/login');
-        } catch(err){
-            setError(err.response?.data?.error|| 'Registrationfailed');
-        } finally{
-            setLoading(false);
-        } 
-    }; 
-    return (
-        <div className='max-w-md mx-auto mt-16 p-8 bg-white rounded-xl shadow'> 
-        <h1 className='text-2xl font-bold mb-6 text-center'>Create Account</h1> 
-        <form onSubmit={handleSubmit} className='space-y-4'> 
-            <input placeholder='FullName' value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} className='w-full border rounded-lg px-4 py-2' required/> 
-            <input type='email' placeholder='Email' value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} className='w-full border rounded-lg px-4 py-2' required/> 
-            <input type='password' placeholder='Password(min 8 chars)' value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} className='w-full border rounded-lg px-4 py-2' required/> 
-            {error && 
-            <p className='text-red-500 text-sm'>{error}</p>
-            } <button type='submit' disabled={loading} className='w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 disabled:opacity-50'> 
-            {loading? 'Registering...':'Create Account'} </button> 
-        </form> 
-        <p className='text-center mt-4 text-sm'>Have an account?<Link to='/login' className='text-orange-500'>Login</Link>
-        </p> 
-        </div>
-    );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setFields({});
+    setLoading(true);
+    try {
+      const user = await register(form);
+      toast(`Welcome to Cravely, ${user.name.split(' ')[0]}! 🎉`, 'success');
+      const next = params.get('next');
+      navigate(next && next.startsWith('/') ? next : '/');
+    } catch (err) {
+      setFields(err.response?.data?.fields || {});
+      setError(apiError(err, 'Registration failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthLayout quote="Amala and ewedu on a Tuesday night, delivered to Yaba in 40 minutes. Correct!" by="Emeka, Yaba">
+      <h1 className="text-4xl font-extrabold">Join Cravely</h1>
+      <p className="mt-2 text-muted">Create an account in seconds. Your first jollof is waiting.</p>
+      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <Input label="Full name" autoComplete="name" value={form.name} onChange={set('name')} required placeholder="Adaeze Okafor" error={fields.name} />
+        <Input label="Email" type="email" autoComplete="email" value={form.email} onChange={set('email')} required placeholder="you@example.com" error={fields.email} />
+        <Input label="Phone number" type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={set('phone')} placeholder="0803 123 4567" hint="So our riders can reach you. We'll never spam you." error={fields.phone} />
+        <PasswordInput autoComplete="new-password" minLength={8} value={form.password} onChange={set('password')} required hint="At least 8 characters" error={fields.password} />
+        {error && !Object.keys(fields).length && <p role="alert" className="rounded-xl bg-jollof-soft px-4 py-3 text-sm font-semibold text-jollof-dark">{error}</p>}
+        <Button type="submit" size="lg" loading={loading} className="w-full">Create account</Button>
+      </form>
+      <p className="mt-8 text-center text-sm text-muted">
+        Already have an account? <Link to="/login" className="font-bold text-ink underline decoration-danfo decoration-4 underline-offset-4">Log in</Link>
+      </p>
+    </AuthLayout>
+  );
 }

@@ -1,77 +1,111 @@
+// Package ws pushes real-time updates to browsers over WebSockets.
+//
+// Clients subscribe to a topic: "order:<id>" for a customer tracking one
+// order, or "staff" for the kitchen dashboard. All map mutations and channel
+// closes happen in the hub goroutine, so there are no races or double closes.
 package ws
 
 import (
+	"context"
 	"encoding/json"
-	"log"
-	"sync"
-
-	"github.com/gorilla/websocket"
+	"fmt"
+	"log/slog"
 )
 
-type Client struct {
-	OrderID uint
-	Conn    *websocket.Conn
-	Send    chan []byte
+const StaffTopic = "staff"
+
+func OrderTopic(orderID uint) string { return fmt.Sprintf("order:%d", orderID) }
+
+// Message is the envelope sent to clients. Data holds the full order so the
+// client can simply replace its copy.
+type Message struct {
+	Event string `json:"event"` // order.created, order.updated
+	Data  any    `json:"data"`
+}
+
+type broadcast struct {
+	topic string
+	data  []byte
 }
 
 type Hub struct {
-	clients    map[uint][]*Client
+	topics     map[string]map[*Client]struct{}
 	register   chan *Client
 	unregister chan *Client
-	mu         sync.RWMutex
+	broadcast  chan broadcast
+	done       chan struct{}
 }
 
-var GlobalHub = &Hub{
-	clients:    make(map[uint][]*Client),
-	register:   make(chan *Client, 256),
-	unregister: make(chan *Client, 256),
+func NewHub() *Hub {
+	return &Hub{
+		topics:     make(map[string]map[*Client]struct{}),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
+		broadcast:  make(chan broadcast, 256),
+		done:       make(chan struct{}),
+	}
 }
 
-func (h *Hub) Run() {
+// Run processes hub events until ctx is cancelled.
+func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
-		case c := <-h.register:
-			h.mu.Lock()
-			h.clients[c.OrderID] = append(h.clients[c.OrderID], c)
-			log.Printf("WS: client registered for order %d", c.OrderID)
-			h.mu.Unlock()
-		case c := <-h.unregister:
-			h.mu.Lock()
-			list := h.clients[c.OrderID]
-			for i, cl := range list {
-				if cl == c {
-					h.clients[c.OrderID] = append(list[:i], list[i+1:]...)
-					break
+		case <-ctx.Done():
+			close(h.done)
+			for _, clients := range h.topics {
+				for c := range clients {
+					close(c.send)
 				}
 			}
-			if len(h.clients[c.OrderID]) == 0 {
-				delete(h.clients, c.OrderID)
+			h.topics = map[string]map[*Client]struct{}{}
+			return
+
+		case c := <-h.register:
+			if h.topics[c.topic] == nil {
+				h.topics[c.topic] = make(map[*Client]struct{})
 			}
-			h.mu.Unlock()
+			h.topics[c.topic][c] = struct{}{}
+
+		case c := <-h.unregister:
+			h.remove(c)
+
+		case b := <-h.broadcast:
+			for c := range h.topics[b.topic] {
+				select {
+				case c.send <- b.data:
+				default:
+					// Client is too slow to keep up; drop it.
+					h.remove(c)
+				}
+			}
 		}
 	}
 }
 
-func (h *Hub) Unregister(c *Client) {
-	h.unregister <- c
-}
-
-func (h *Hub) BroadcastOrderUpdate(orderID uint, payload interface{}) {
-	data, err := json.Marshal(payload)
-	if err != nil {
+func (h *Hub) remove(c *Client) {
+	clients := h.topics[c.topic]
+	if _, ok := clients[c]; !ok {
 		return
 	}
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for _, c := range h.clients[orderID] {
-		select {
-		case c.Send <- data:
-		default:
-			close(c.Send)
-		}
+	delete(clients, c)
+	close(c.send)
+	if len(clients) == 0 {
+		delete(h.topics, c.topic)
 	}
 }
 
-func (h *Hub) Register(c *Client) {
-	h.register <- c
+// Publish sends msg to every client subscribed to topic. It never blocks the
+// caller for long: if the hub is overloaded the message is dropped, and
+// clients will catch up on their next REST fetch.
+func (h *Hub) Publish(topic string, msg Message) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("ws: marshal message", "err", err)
+		return
+	}
+	select {
+	case h.broadcast <- broadcast{topic: topic, data: data}:
+	default:
+		slog.Warn("ws: broadcast queue full, dropping message", "topic", topic)
+	}
 }

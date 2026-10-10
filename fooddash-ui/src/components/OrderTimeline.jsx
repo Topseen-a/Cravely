@@ -1,25 +1,20 @@
+import { STATUS } from '../lib/status';
+import { lagosTime } from '../lib/format';
+
 export default function OrderTimeline({ events }) {
   if (!events?.length) return null;
   return (
-    <div className="mt-4 border-t pt-4">
-      <h3
-        className="font-bold text-sm text-gray-500 uppercase tracking-wide mb-
-3"
-      >
-        Status History
-      </h3>
-      <div className="space-y-2">
-        {events.map((ev) => (
-          <div key={ev.id} className="flex items-center gap-3 text-sm">
-            <span className="w-2 h-2 rounded-full bg-orange-500 flex shrink-0" />
-            <span className="font-medium">{ev.status.replace("_", " ")}</span>
-            <span className="text-gray-400 text-xs ml-auto">
-              {new Date(ev.created_at).toLocaleTimeString()}
-            </span>
+    <ol className="relative space-y-5 border-l-2 border-dashed border-line pl-6">
+      {[...events].reverse().map((ev, i) => (
+        <li key={ev.ID} className="relative">
+          <span className={`absolute -left-[31px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white ${i === 0 ? STATUS[ev.status]?.dot || 'bg-ink' : 'bg-line'}`} />
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <p className="font-semibold">{STATUS[ev.status]?.label || ev.status}</p>
+            <time className="text-xs font-semibold text-muted">{lagosTime(ev.CreatedAt)}</time>
           </div>
-        ))}
-      </div>
-    </div>
+          {ev.note && <p className="text-sm text-muted">{ev.note}</p>}
+        </li>
+      ))}
+    </ol>
   );
 }
-// Add <OrderTimeline events={order.events} /> inside OrderPage
