@@ -14,11 +14,16 @@ function readUser() {
 export function AuthProvider({ children }) {
   // Restore the session from localStorage so it survives a refresh.
   const [user, setUser] = useState(readUser);
+  // Logging out happens in two steps (see LogoutHandler in App.jsx): first
+  // the app leaves any members-only page, then the session is cleared. This
+  // way the user lands on the home page instead of being bounced to /login.
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const saveSession = ({ token, user: u }) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(u));
     setUser(u);
+    setLoggingOut(false);
     return u;
   };
 
@@ -45,14 +50,17 @@ export function AuthProvider({ children }) {
     setUser(u);
   };
 
-  const logout = () => {
+  const logout = () => setLoggingOut(true);
+
+  const completeLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setLoggingOut(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, registerStaff, updateUser, saveSession, isStaff: user?.role === 'staff' }}>
+    <AuthContext.Provider value={{ user, loggingOut, completeLogout, login, logout, register, registerStaff, updateUser, saveSession, isStaff: user?.role === 'staff' }}>
       {children}
     </AuthContext.Provider>
   );

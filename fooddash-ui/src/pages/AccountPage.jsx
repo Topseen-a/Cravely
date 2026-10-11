@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/hooks';
 import { useToast } from '../context/hooks';
 import { updateMe, changePassword } from '../api/endpoints';
@@ -9,7 +8,6 @@ import { Button, Card, Input, PasswordInput, PageTitle } from '../components/ui'
 export default function AccountPage() {
   const { user, updateUser, saveSession, logout, isStaff } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState({ name: user.name, phone: prettyPhone(user.phone) });
   const [pw, setPw] = useState({ current_password: '', new_password: '' });
   const [saving, setSaving] = useState('');
@@ -69,7 +67,7 @@ export default function AccountPage() {
         </form>
       </Card>
 
-      <Button variant="danger" className="mt-6 w-full md:hidden" onClick={() => { logout(); navigate('/'); }}>Log out</Button>
+      <Button variant="danger" className="mt-6 w-full md:hidden" onClick={logout}>Log out</Button>
     </div>
   );
 }

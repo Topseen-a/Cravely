@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/hooks';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { StoreProvider } from './context/StoreContext';
@@ -30,6 +31,20 @@ function ScrollToTop() {
   return null;
 }
 
+// Completes a logout: first go home (leaving any members-only page while still
+// signed in), then clear the session there.
+function LogoutHandler() {
+  const { loggingOut, completeLogout } = useAuth();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (!loggingOut) return;
+    if (pathname !== '/') navigate('/', { replace: true });
+    else completeLogout();
+  }, [loggingOut, pathname, navigate, completeLogout]);
+  return null;
+}
+
 // Auth pages use their own full-bleed layout without the footer.
 function Shell({ children }) {
   const { pathname } = useLocation();
@@ -52,6 +67,7 @@ export default function App() {
           <StoreProvider>
             <BrowserRouter>
               <ScrollToTop />
+              <LogoutHandler />
               <Shell>
                 <Routes>
                   <Route path="/" element={<MenuPage />} />
