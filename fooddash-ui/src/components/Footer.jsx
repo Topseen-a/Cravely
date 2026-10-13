@@ -1,4 +1,4 @@
-import { useStore } from '../context/hooks';
+import { useAuth, useStore } from '../context/hooks';
 import { clock } from '../lib/format';
 import Logo from './illustrations/Logo';
 
@@ -22,10 +22,13 @@ function Skyline() {
 
 export default function Footer() {
   const { store, zones } = useStore();
+  const { user } = useAuth();
   return (
-    <footer className="mt-20 pb-20 md:pb-0">
+    <footer className="mt-20">
       <Skyline />
-      <div className="bg-adire bg-ink text-cream">
+      {/* On phones, signed-in users have a fixed bottom tab bar; keep the dark
+          footer running underneath it instead of leaving a light gap. */}
+      <div className={`bg-adire bg-ink text-cream ${user ? 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
         <div className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-4 py-12 sm:grid-cols-3">
           <div>
             <Logo light />
