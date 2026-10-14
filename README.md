@@ -206,3 +206,7 @@ Full checklists are in each app's README.
 | Website loads but the menu is empty | Run `go run ./cmd/seed` in `fooddash-api` |
 | "We're closed right now" at checkout | Adjust `OPENING_TIME` / `CLOSING_TIME` (equal values = 24 hours) and restart the API |
 | A change to `.env` has no effect | Restart the API (Ctrl+C, then `go run .`) or the web app (`npm run dev`) |
+
+## Author
+
+Built by [Temitope](https://github.com/Topseen-a).
