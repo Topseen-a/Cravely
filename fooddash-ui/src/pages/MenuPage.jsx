@@ -7,7 +7,7 @@ import { useStore } from '../context/hooks';
 import { naira, greeting } from '../lib/format';
 import LagosScene from '../components/illustrations/LagosScene';
 import FoodArt from '../components/illustrations/FoodArt';
-import MenuItemCard from '../components/MenuItemCard';
+import MenuItemCard, { DishTile } from '../components/MenuItemCard';
 import StoreStatusPill from '../components/StoreStatusPill';
 import { Skeleton, EmptyState } from '../components/ui';
 import Icon from '../components/Icon';
@@ -71,9 +71,7 @@ function Hero() {
         {/* floating "today's special" card */}
         <div className="relative hidden lg:block">
           <div className="animate-float absolute right-2 top-0 w-72 rotate-3 rounded-3xl border-2 border-ink bg-cream p-4 shadow-pop">
-            <div className="bg-adire-light rounded-2xl bg-jollof-soft">
-              <FoodArt name="Jollof Rice" className="h-44 w-full" />
-            </div>
+            <DishTile item={{ name: 'Jollof Rice' }} className="h-44 w-full rounded-2xl" />
             <div className="mt-3 flex items-end justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-jollof">Today&rsquo;s special</p>

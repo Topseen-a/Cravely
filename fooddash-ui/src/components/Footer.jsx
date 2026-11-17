@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth, useStore } from '../context/hooks';
 import { clock } from '../lib/format';
 import Logo from './illustrations/Logo';
@@ -51,7 +52,7 @@ export default function Footer() {
         <div className="border-t border-cream/10">
           <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-2 px-4 py-5 text-xs text-cream/50">
             <span>© {new Date().getFullYear()} Cravely. Made with love in Lagos 🇳🇬</span>
-            <span>Payments secured by Paystack · Prices in Naira (₦)</span>
+            <span>Payments secured by Paystack · Prices in Naira (₦) · <Link to="/photo-credits" className="underline-offset-2 hover:text-cream hover:underline">Photo credits</Link></span>
           </div>
         </div>
       </div>

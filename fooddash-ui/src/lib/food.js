@@ -54,3 +54,26 @@ export const TILE = {
   wrap: 'bg-danfo-soft', puff: 'bg-danfo-soft', pie: 'bg-danfo-soft', drink: 'bg-adire-soft',
   bottle: 'bg-lagoon-soft', dessert: 'bg-adire-soft', bowl: 'bg-cream-dark',
 };
+
+// Real photos bundled in public/food (see public/food/CREDITS.md). Matched by
+// keyword like the illustrations above, so a new "Jollof Rice & Chicken" still
+// gets the jollof photo. Order matters: more specific dishes come first.
+// A staff-set image_url always wins; unmatched dishes fall back to FoodArt.
+const PHOTOS = [
+  [['zobo'], 'zobo'], [['chapman'], 'chapman'], [['water'], 'water'], [['malt'], 'malt'],
+  [['coke', 'coca', 'cola'], 'coca-cola'],
+  [['puff'], 'puff-puff'], [['meat pie'], 'meat-pie'], [['suya'], 'suya'], [['shawarma'], 'shawarma'],
+  [['asun'], 'asun'], [['dodo', 'plantain'], 'dodo'], [['moi'], 'moi-moi'],
+  [['fish', 'croaker', 'tilapia'], 'fried-fish'], [['turkey'], 'peppered-turkey'], [['goat'], 'goat-meat'],
+  [['jollof'], 'jollof-rice'], [['fried rice'], 'fried-rice'], [['coconut rice'], 'coconut-rice'],
+  [['ofada'], 'ofada-rice'], [['white rice', 'rice & stew', 'rice and stew'], 'white-rice-stew'],
+  [['egusi', 'pounded'], 'pounded-yam-egusi'], [['amala', 'ewedu', 'gbegiri'], 'amala-ewedu'],
+  [['okra', 'okro'], 'eba-okra'], [['efo', 'semo'], 'semo-efo-riro'], [['banga', 'fufu'], 'fufu-banga'],
+  [['chicken'], 'fried-chicken'],
+];
+
+export function dishPhoto(name = '') {
+  const n = name.toLowerCase();
+  const hit = PHOTOS.find(([words]) => words.some((w) => n.includes(w)));
+  return hit ? `/food/${hit[1]}.jpg` : null;
+}

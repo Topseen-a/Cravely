@@ -1,5 +1,5 @@
 import { Danfo, Okada } from './illustrations/Vehicles';
-import FoodArt from './illustrations/FoodArt';
+import { DishTile } from './MenuItemCard';
 
 function Panel({ quote, by }) {
   return (
@@ -12,10 +12,10 @@ function Panel({ quote, by }) {
 
       <div className="relative mt-auto">
         <div className="animate-float absolute -top-56 right-4 w-56 rotate-6 rounded-3xl bg-cream p-3 shadow-pop">
-          <div className="rounded-2xl bg-palm-soft"><FoodArt name="Pounded Yam & Egusi" className="h-36 w-full" /></div>
+          <DishTile item={{ name: 'Pounded Yam & Egusi' }} className="h-36 w-full rounded-2xl" />
         </div>
         <div className="animate-float absolute -top-40 left-0 w-44 -rotate-6 rounded-3xl bg-cream p-3 shadow-pop" style={{ animationDelay: '-2s' }}>
-          <div className="rounded-2xl bg-jollof-soft"><FoodArt name="Beef Suya" className="h-28 w-full" /></div>
+          <DishTile item={{ name: 'Beef Suya' }} className="h-28 w-full rounded-2xl" />
         </div>
         {/* road */}
         <svg viewBox="0 0 600 130" className="w-full" aria-hidden="true">

@@ -77,7 +77,7 @@ function DishForm({ item, categories, onSaved, onClose }) {
         <Input label="Price (₦)" type="number" min="1" step="0.01" inputMode="decimal" value={form.price} onChange={set('price')} required />
       </div>
       <Textarea label="Description" value={form.description} onChange={set('description')} maxLength={1000} className="sm:col-span-2" placeholder="What makes it special?" />
-      <Input label="Photo URL (optional)" type="url" value={form.image_url} onChange={set('image_url')} placeholder="https://…" hint="Leave empty to use Cravely’s illustration" className="sm:col-span-2" />
+      <Input label="Photo URL (optional)" type="url" value={form.image_url} onChange={set('image_url')} placeholder="https://…" hint="Leave empty to use Cravely’s own photo" className="sm:col-span-2" />
       <div className="flex gap-3 sm:col-span-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
         <Button type="submit" className="flex-1" loading={saving}>{item ? 'Save changes' : 'Add dish'}</Button>

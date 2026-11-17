@@ -22,6 +22,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import StaffDashboard from './pages/StaffDashboard';
 import MenuManagementPage from './pages/MenuManagementPage';
+import PhotoCreditsPage from './pages/PhotoCreditsPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -83,6 +84,7 @@ export default function App() {
                   <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
                   <Route path="/staff" element={<ProtectedRoute staffOnly><StaffDashboard /></ProtectedRoute>} />
                   <Route path="/staff/menu" element={<ProtectedRoute staffOnly><MenuManagementPage /></ProtectedRoute>} />
+                  <Route path="/photo-credits" element={<PhotoCreditsPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Shell>

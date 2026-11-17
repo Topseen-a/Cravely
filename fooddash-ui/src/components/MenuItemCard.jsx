@@ -5,15 +5,18 @@ import { useCart } from '../context/hooks';
 import { useToast } from '../context/hooks';
 import { naira, apiError } from '../lib/format';
 import FoodArt from './illustrations/FoodArt';
-import { foodKind, TILE } from '../lib/food';
+import { foodKind, dishPhoto, TILE } from '../lib/food';
 import Icon from './Icon';
 
 export function DishTile({ item, category, className = '' }) {
   const kind = foodKind(item.name, category).kind;
+  // Staff photo first, then Cravely's bundled photo, then the illustration.
+  const src = item.image_url || dishPhoto(item.name);
+  const [failed, setFailed] = useState(null);
   return (
     <div className={`bg-adire-light relative overflow-hidden ${TILE[kind]} ${className}`}>
-      {item.image_url ? (
-        <img src={item.image_url} alt={item.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+      {src && failed !== src ? (
+        <img src={src} alt={item.name} loading="lazy" onError={() => setFailed(src)} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
       ) : (
         <FoodArt name={item.name} category={category} className="h-full w-full p-3 transition duration-500 group-hover:scale-110 group-hover:-rotate-2" />
       )}
