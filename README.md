@@ -183,7 +183,7 @@ cd fooddash-ui  && npm run build    # production build check
 ## Deployment
 
 **Render + Vercel (ready to use):**
-- `render.yaml` creates the PostgreSQL database and the API on Render in one step (*New → Blueprint*).
+- `render.yaml` creates the API on Render (*New → Blueprint*). The database lives on Neon's free tier; paste its connection string into `DATABASE_URL` when asked.
 - `fooddash-ui/vercel.json` configures the website on Vercel (set the project's Root Directory to `fooddash-ui` and add `VITE_API_URL`).
 
 General steps for any host:

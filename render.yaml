@@ -1,13 +1,9 @@
-# Render Blueprint: creates the Cravely database and API together.
+# Render Blueprint: creates the Cravely API.
 # Render dashboard → New → Blueprint → pick this repository.
 # Frankfurt is Render's closest region to Lagos.
-
-databases:
-  - name: cravely-db
-    plan: free            # free databases expire after 30 days; upgrade before launch
-    region: frankfurt
-    databaseName: fooddash
-    user: cravely
+#
+# The database is hosted on Neon (free tier, does not expire), not on Render.
+# Render's free Postgres is deleted after 30 days, so don't add one back here.
 
 services:
   - type: web
@@ -23,10 +19,8 @@ services:
       paths:
         - fooddash-api/**
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: cravely-db
-          property: connectionString
+      - key: DATABASE_URL        # Neon connection string (Dashboard → Connect, pooling off)
+        sync: false
       - key: APP_ENV
         value: production
       - key: JWT_SECRET

@@ -394,10 +394,10 @@ The image is based on Alpine and runs as a non-root user. It includes `tzdata` (
 
 ## Deploying to production
 
-**On Render:** the `render.yaml` Blueprint in the repository root creates the database and this API (Docker, Frankfurt region) with `DATABASE_URL`, `APP_ENV`, a generated `JWT_SECRET`, `TRUSTED_PROXIES` and a `/readyz` health check already set. You'll be asked for `STAFF_CODE`, `CORS_ORIGINS`, `APP_URL` and `PAYSTACK_CALLBACK_URL`. To load the sample menu into the Render database from your computer:
+**On Render:** the `render.yaml` Blueprint in the repository root creates this API (Docker, Frankfurt region) with `APP_ENV`, a generated `JWT_SECRET`, `TRUSTED_PROXIES` and a `/readyz` health check already set. You'll be asked for `DATABASE_URL` (your Neon connection string), `STAFF_CODE`, `CORS_ORIGINS`, `APP_URL` and `PAYSTACK_CALLBACK_URL`. To load the sample menu into the Neon database from your computer:
 
 ```bash
-DATABASE_URL='<External Database URL from Render>' go run ./cmd/seed
+DATABASE_URL='<your Neon connection string>' go run ./cmd/seed
 ```
 
 Checklist for any host:
