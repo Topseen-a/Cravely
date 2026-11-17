@@ -118,7 +118,7 @@ function OrderCard({ order, now, onAction }) {
               key={s}
               size="sm"
               variant={i === 0 ? 'primary' : 'outline'}
-              className="flex-1"
+              className="flex-1 whitespace-nowrap"
               loading={busy === s}
               disabled={!!busy || (s === 'PREPARING' && waitingPayment)}
               title={s === 'PREPARING' && waitingPayment ? 'Waiting for online payment' : undefined}
